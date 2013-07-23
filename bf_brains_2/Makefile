@@ -46,10 +46,10 @@
 
 # List Arduino/chipKIT/Energia/Maple/Teensy/Wiring libraries here 
 #
-#APP_LIBS_LIST = Wire Wire/utility EEPROM Ethernet Ethernet/utility \
+APP_LIBS_LIST = Wire Wire/utility EEPROM Ethernet Ethernet/utility \
 	SPI Firmata LiquidCrystal Matrix Sprite SD SD/utility Servo SoftwareSerial Stepper 
 
-APP_LIBS_LIST = 0
+#APP_LIBS_LIST = 0
 
 # List users libraries here 
 #
@@ -63,7 +63,9 @@ APP_LIBS_LIST = 0
 #	MatrixMath pic32_RTC Time Timers AvrFlash
 #	I2C_20x4 Serial_20x4 Serial_GPS Serial_WiFi
 
-USER_LIBS_LIST = 0
+# USER_LIBS_LIST = 0
+
+USER_LIBS_LIST = RTClib
 
 # List core, application and user libraries to be excluded
 # For example, WiFi may crash on Arduino 1.0.2
