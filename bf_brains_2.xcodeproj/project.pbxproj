@@ -289,6 +289,9 @@
 		223EF7EA179F2024006E2CF0 /* embedXcode_chrono */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = embedXcode_chrono; path = Utilities/embedXcode_chrono; sourceTree = "<group>"; };
 		223EF7EB179F2024006E2CF0 /* TemplateIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = TemplateIcon.icns; path = Utilities/TemplateIcon.icns; sourceTree = "<group>"; };
 		223EF7EC179F2024006E2CF0 /* bf_brains_2.ino */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; path = bf_brains_2.ino; sourceTree = "<group>"; };
+		22A2052D17A583DF00C27B3A /* example.ino */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = example.ino; sourceTree = "<group>"; };
+		22A2052E17A583DF00C27B3A /* HIH61XX.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = HIH61XX.cpp; sourceTree = "<group>"; };
+		22A2052F17A583DF00C27B3A /* HIH61XX.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HIH61XX.h; sourceTree = "<group>"; };
 		AAAA130723163416AA000005 /* Arduino.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Arduino.h; sourceTree = "<group>"; };
 		AAAA130723163416AA000007 /* malloc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = malloc.c; sourceTree = "<group>"; };
 		AAAA130723163416AA000008 /* realloc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = realloc.c; sourceTree = "<group>"; };
@@ -629,6 +632,24 @@
 				223EF7EB179F2024006E2CF0 /* TemplateIcon.icns */,
 			);
 			name = Utilities;
+			sourceTree = "<group>";
+		};
+		22A2052B17A583DF00C27B3A /* HIH61XX */ = {
+			isa = PBXGroup;
+			children = (
+				22A2052C17A583DF00C27B3A /* example */,
+				22A2052E17A583DF00C27B3A /* HIH61XX.cpp */,
+				22A2052F17A583DF00C27B3A /* HIH61XX.h */,
+			);
+			path = HIH61XX;
+			sourceTree = "<group>";
+		};
+		22A2052C17A583DF00C27B3A /* example */ = {
+			isa = PBXGroup;
+			children = (
+				22A2052D17A583DF00C27B3A /* example.ino */,
+			);
+			path = example;
 			sourceTree = "<group>";
 		};
 		AAAA130723163416AA000000 /* Resources */ = {
@@ -1049,6 +1070,7 @@
 		AAAA130723163416AA0000EF /* Libraries */ = {
 			isa = PBXGroup;
 			children = (
+				22A2052B17A583DF00C27B3A /* HIH61XX */,
 				AAAA130723163416AA0000F0 /* RTClib */,
 			);
 			name = Libraries;

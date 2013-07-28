@@ -2,8 +2,11 @@
 #include <arduino.h>
 #include </Applications/Arduino.app/Contents/Resources/Java/libraries/Wire/Wire.h>
 #include </Users/sam/Documents/Arduino/libraries/RTClib/RTClib.h>
+#include </Users/sam/Documents/Arduino/libraries/HIH61XX/HIH61XX.h>
+#include </Users/sam/Documents/Arduino/libraries/HIH61XX/HIH61XX.cpp>
 
 RTC_DS1307 RTC;
+HIH61XX hih(0x27, 2);
 
 /***********************************
  
@@ -25,6 +28,7 @@ RTC_DS1307 RTC;
  a = query actuator
  s = query solenoids
  t = query time
+ h = query humidity + temperature
  
  R = reset   T = set time to system time
  
@@ -42,11 +46,7 @@ int actind1 = 11;
 int actind2 = 12;
 
 // solenoid pins
-int solind1 = 3;
-int solind2 = 4;
-int solind3 = 5;
-int solind4 = 6;
-int solind5 = 7;
+int solenoids[] = { 3, 4, 5, 6, 7 };
 
 // actuator pot input pin (analog 0)
 int positionFeedback = A0;
@@ -60,7 +60,7 @@ unsigned long prevtime;
 // timers
 unsigned long dbstart;
 unsigned long bumpstart;
-unsigned long solstart;
+unsigned long solstart[5];
 int soltime = 100;
 int bumptime = 750;
 int dbtimer = 500;
@@ -69,6 +69,9 @@ int dbtimer = 500;
 String lastcommand;
 String command = "stop";
 int soltrigger[5];
+int hbell[] = { 1 };            // on the hour
+int mbell[] = { 10, 11, 15 };   // minute repetitions
+int sbell[] = { 5, 20, 30 };    // second repetition
 
 // functions
 int getPosition() {
@@ -117,6 +120,23 @@ void queryStatus(String cmp) {
         Serial.println();
     }
     
+    if (cmp == "hih" || cmp == "all") {
+        hih.start(); // start HIH
+        hih.update(); // request update
+        
+        Serial.print("Humidity: ");
+        Serial.print(hih.humidity(), 5);
+        Serial.print(" RH (");
+        Serial.print(hih.humidity_Raw());
+        Serial.println(")");
+        
+        Serial.print("Temperature: ");
+        Serial.print(hih.temperature(), 5);
+        Serial.print(" C (");
+        Serial.print(hih.temperature_Raw());
+        Serial.println(")");
+    }
+    
 }
 
 // setup
@@ -128,11 +148,11 @@ void setup() {
     pinMode(act2, OUTPUT);
     pinMode(actind1, OUTPUT);
     pinMode(actind2, OUTPUT);
-    pinMode(solind1, OUTPUT);
-    pinMode(solind2, OUTPUT);
-    pinMode(solind3, OUTPUT);
-    pinMode(solind4, OUTPUT);
-    pinMode(solind5, OUTPUT);
+    
+    for (int i = 0; i < 5; i++) {
+        pinMode(solenoids[i], OUTPUT);
+    }
+    
     pinMode(positionFeedback, INPUT);
     
     dbstart = millis();
@@ -158,11 +178,18 @@ void loop() {
     // get current actuator position
     currPos = getPosition();
     
-    DateTime now = RTC.now();
-//    if (now.second() % 5 == 0 && now.unixtime() != prevtime) {
-//        soltrigger = 1;
-//        prevtime = now.unixtime();
-//        solstart = millis();
+    //          CHIME TIMING
+    
+//    DateTime now = RTC.now();
+//    if (now.hour() > 8 && now.hour() < 22) {
+//        // open hours: 8am to 11pm
+//        
+//        if (now.second() % 5 == 0 && now.unixtime() != prevtime) {
+//            soltrigger[0] = 1;
+//            prevtime = now.unixtime();
+//            solstart[0] = millis();
+//        }
+//        
 //    }
     
     //          SERIAL INPUT
@@ -180,9 +207,9 @@ void loop() {
         
         if (incoming > 48 && incoming < 54) {
             // input is one of the 1-5 keys
-            // subtract 48 because the ascii code for 1 is 49
+            // subtract 49 because the ascii code for 1 is 49
             soltrigger[incoming - 49] = 1;
-            solstart = millis();
+            solstart[incoming-49] = millis();
             queryStatus("solenoids");
         }
         
@@ -213,10 +240,17 @@ void loop() {
             case 113: // q
                 queryStatus("all");
                 break;
+            case 104: // h
+                queryStatus("hih");
+                break;
             case 82: // R
                 digitalWrite(reset, LOW);
                 break;
             case 84: // T
+                Serial.print("setting time to ");
+                Serial.print(__DATE__);
+                Serial.print(" -- ");
+                Serial.println(__TIME__);
                 RTC.adjust(DateTime(__DATE__, __TIME__));
                 break;
             case 32:
@@ -228,25 +262,11 @@ void loop() {
     }
     
     
-    //          ACTUATOR PRINTING
+    //          ACTUATOR AUTOSTOP
     
     if (millis() - dbstart > dbtimer) {
-        // debounce timer
-        
-        if (shouldPrint) {
-            queryStatus("actuator");
-        }
-        
-        // if command isn't stop, but actuator is not moving
-        // i.e. if it's autostopped at the top or bottom
-        
         if (currPos == prevPos) command = "stop";
-        if (command == "stop") shouldPrint = false;
-        else shouldPrint = true;
-        
-        // reset shit
         dbstart = millis();
-        prevPos = currPos;
     }
     
     
@@ -258,11 +278,10 @@ void loop() {
         digitalWrite(actind2, LOW);
         digitalWrite(act2, LOW);
         digitalWrite(act1, LOW);
-        digitalWrite(solind1, LOW);
-        digitalWrite(solind2, LOW);
-        digitalWrite(solind3, LOW);
-        digitalWrite(solind4, LOW);
-        digitalWrite(solind5, LOW);
+        
+        for (int i = 0; i < 5; i++) {
+            digitalWrite(solenoids[i], LOW);
+        }
     }
     
     else if (command == "up") {
@@ -300,33 +319,11 @@ void loop() {
     
     for (int i = 0; i < 5; i++) {
         if (soltrigger[i]) {
-            // solenoid trigger isn't 0
+            digitalWrite(solenoids[i], HIGH);
             
-            switch(i+1) {
-                    // turn relevant solenoids on
-                case 1:
-                    digitalWrite(solind1, HIGH);
-                    break;
-                case 2:
-                    digitalWrite(solind2, HIGH);
-                    break;
-                case 3:
-                    digitalWrite(solind3, HIGH);
-                    break;
-                case 4:
-                    digitalWrite(solind4, HIGH);
-                    break;
-                case 5:
-                    digitalWrite(solind5, HIGH);
-                    break;
-            }
-            if (millis() - solstart > soltime) {
+            if (millis() - solstart[i] > soltime) {
                 // turn solenoids off
-                digitalWrite(solind1, LOW);
-                digitalWrite(solind2, LOW);
-                digitalWrite(solind3, LOW);
-                digitalWrite(solind4, LOW);
-                digitalWrite(solind5, LOW);
+                digitalWrite(solenoids[i], LOW);
                 soltrigger[i] = 0;
             }
         }

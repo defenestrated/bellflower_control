@@ -12,4 +12,8 @@ Builds/main.o: main.cpp bf_brains_2.ino \
   /Applications/Arduino.app/Contents/Resources/Java/hardware/arduino/cores/Arduino/arduino.h \
   /Applications/Arduino.app/Contents/Resources/Java/libraries/Wire/Wire.h \
   /Applications/Arduino.app/Contents/Resources/Java/hardware/arduino/cores/Arduino/Stream.h \
-  /Users/sam/Documents/Arduino/libraries/RTClib/RTClib.h
+  /Users/sam/Documents/Arduino/libraries/RTClib/RTClib.h \
+  /Users/sam/Documents/Arduino/libraries/HIH61XX/HIH61XX.h \
+  /Applications/Arduino.app/Contents/Resources/Java/libraries/Wire/Wire.h \
+  /Users/sam/Documents/Arduino/libraries/HIH61XX/HIH61XX.cpp \
+  /Users/sam/Documents/Arduino/libraries/HIH61XX/HIH61XX.h
