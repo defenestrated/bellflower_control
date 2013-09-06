@@ -1,16 +1,16 @@
-#include <Wire.h>
-#include <HIH61XX.h>
-#include <RTClib.h>
+//#include <Wire.h>
+//#include <HIH61XX.h>
+//#include <RTClib.h>
 
 // ^^ uncomment these for arduino ^^
 // vv uncomment these for xcode vv
 
-//#include <Arduino.h>
-//#include <arduino.h>
-//#include </Applications/Arduino.app/Contents/Resources/Java/libraries/Wire/Wire.h>
-//#include </Users/sam/Documents/Arduino/libraries/RTClib/RTClib.h>
-//#include </Users/sam/Documents/Arduino/libraries/HIH61XX/HIH61XX.h>
-//#include </Users/sam/Documents/Arduino/libraries/HIH61XX/HIH61XX.cpp>
+#include <Arduino.h>
+#include <arduino.h>
+#include </Applications/Arduino.app/Contents/Resources/Java/libraries/Wire/Wire.h>
+#include </Users/sam/Documents/Arduino/libraries/RTClib/RTClib.h>
+#include </Users/sam/Documents/Arduino/libraries/HIH61XX/HIH61XX.h>
+#include </Users/sam/Documents/Arduino/libraries/HIH61XX/HIH61XX.cpp>
 
 RTC_DS1307 RTC;
 HIH61XX hih(0x27, 2);
@@ -23,8 +23,9 @@ HIH61XX hih(0x27, 2);
  instructions:
 
  -- actuator movement --
- i = up      o = bump up
- k = down    l = bump down
+ i = up      o = bump up        u = up to limit
+ k = down    l = bump down      j = down to limit
+ 
  space = stop
  
  -- solenoid control --
@@ -43,27 +44,7 @@ HIH61XX hih(0x27, 2);
  ***********************************/
 
 // e
-int e[] = {
-    2,7,1,8,2,8,1,8,2,8,4,5,9,0,4,5,2,3,5,3,6,0,2,8,7,4,
-    7,1,3,5,2,6,6,2,4,9,7,7,5,7,2,4,7,0,9,3,6,9,9,9,5,9,
-    5,7,4,9,6,6,9,6,7,6,2,7,7,2,4,0,7,6,6,3,0,3,5,3,5,4,
-    7,5,9,4,5,7,1,3,8,2,1,7,8,5,2,5,1,6,6,4,2,7,4,2,7,4,
-    6,6,3,9,1,9,3,2,0,0,3,0,5,9,9,2,1,8,1,7,4,1,3,5,9,6,
-    6,2,9,0,4,3,5,7,2,9,0,0,3,3,4,2,9,5,2,6,0,5,9,5,6,3,
-    0,7,3,8,1,3,2,3,2,8,6,2,7,9,4,3,4,9,0,7,6,3,2,3,3,8,
-    2,9,8,8,0,7,5,3,1,9,5,2,5,1,0,1,9,0,1,1,5,7,3,8,3,4,
-    1,8,7,9,3,0,7,0,2,1,5,4,0,8,9,1,4,9,9,3,4,8,8,4,1,6,
-    7,5,0,9,2,4,4,7,6,1,4,6,0,6,6,8,0,8,2,2,6,4,8,0,0,1,
-    6,8,4,7,7,4,1,1,8,5,3,7,4,2,3,4,5,4,4,2,4,3,7,1,0,7,
-    5,3,9,0,7,7,7,4,4,9,9,2,0,6,9,5,5,1,7,0,2,7,6,1,8,3,
-    8,6,0,6,2,6,1,3,3,1,3,8,4,5,8,3,0,0,0,7,5,2,0,4,4,9,
-    3,3,8,2,6,5,6,0,2,9,7,6,0,6,7,3,7,1,1,3,2,0,0,7,0,9,
-    3,2,8,7,0,9,1,2,7,4,4,3,7,4,7,0,4,7,2,3,0,6,9,6,9,7,
-    7,2,0,9,3,1,0,1,4,1,6,9,2,8,3,6,8,1,9,0,2,5,5,1,5,1,
-    0,8,6,5,7,4,6,3,7,7,2,1,1,1,2,5,2,3,8,9,7,8,4,4,2,5,
-    0,5,6,9,5,3,6,9,6,7,7,0,7,8,5,4,4,9,9,6,9,9,6,7,9,4,
-    6,8,6,4,4,5,4,9,0,5,9,8,7,9,3,1,6,3,6,8,8,9,2,3,0,0,
-    9,8,7,9,3,1}; // length 500
+int e[] = {2,7,1,8,2,8,1,8,2,8,4,5,9,0,4,5,2,3,5,3,6,0,2,8,7,4,7,1,3,5,2,6,6,2,4,9,7,7,5,7,2,4,7,0,9,3,6,9,9,9,5,9,5,7,4,9,6,6,9,6};
 
 // reset pin
 int reset = 10;
@@ -95,6 +76,8 @@ int seedpin = A2;
 // debouncers & control
 int currPos;
 int prevPos;
+int downlimit = 175;
+int uplimit = 255;
 
 int actmax = 255;
 int actmin = 175;
@@ -111,8 +94,8 @@ float prevtemp = 0;
 
 int cyclecount = 0;
 int direction = 0;
-int variance = 1;
-int pacing = 1;
+int variance = 5;
+int pacing = 5;
 float chaos = 0.0;
 
 // timers
@@ -207,7 +190,6 @@ void queryStatus(String cmp) {
         Serial.print(hih.temperature_Raw());
         Serial.println(")");
     }
-    
 }
 
 float humval() {
@@ -228,28 +210,62 @@ void chime(int sol) {
 }
 
 void makenotes(int hour, int minute, float humidity, float temperature) {
-    numnotes = floor( lateness / 15 * 8 );
-    chaos = lateness / 15;
+//    Serial.println("making notes...");
+//    Serial.print("hour: ");
+//    Serial.println(hour);
     
-    int seed = e[cyclecount % 500] % 5;
+    numnotes = int(floor(lateness / 15.0 * 8.0));
+    chaos = lateness / 15.0;
+//    Serial.print("numnotes: ");
+//    Serial.print(numnotes);
+//    Serial.print(" chaos: ");
+//    Serial.println(chaos);
     
-    direction = floor( random(3) ) - 1; // -1, 0, or 1
+    int pos = cyclecount % 500;
+    int seed = e[pos];
+//    Serial.print("seed: ");
+//    Serial.println(seed);
+    
+    direction = int(floor( random(3.0) ) - 1.0); // -1, 0, or 1
+
+//    Serial.print("direction: ");
+//    Serial.println(direction);
+//    
+//    Serial.print("past temp: ");
+//    Serial.print(prevtemp);
+//    Serial.print(" curr temp: ");
+//    Serial.print(temperature);
+//    Serial.print(" past hum: ");
+//    Serial.print(prevhum);
+//    Serial.print(" curr hum: ");
+//    Serial.println(humidity);
     
     (temperature > prevtemp) ? variance -- : variance ++ ;
     (humidity > prevhum) ? pacing -- : pacing ++ ;
     variance = constrain(variance, 0, 10);
     pacing = constrain(pacing, 0, 10);
+
+//    Serial.print("variance: ");
+//    Serial.print(variance);
+//    Serial.print(", pacing: ");
+//    Serial.println(pacing);
+//    Serial.print("notes: ");
     
     for (int i = 0; i < 8; i++) {
-        int entropy = floor(chaos * random(5));
+        int entropy = int(floor(chaos * random(5.0)));
         if (i < numnotes) notes[i] = abs((seed + variance * direction + entropy) % 5);
         else notes[i] = 6; // 6 for non-playing note
+//        Serial.print(notes[i]);
+//        Serial.print(" ");
     }
+    
+//    Serial.println();
+//    Serial.print("timing: ");
     
     for (int j = 0; j < 8; j++) {
         // 900 seconds per 15 minutes
         
-        int entropy = floor(chaos * random(6*pacing));
+        int entropy = int(floor(chaos * random(6.0*pacing)));
         if (j < numnotes) {
             if (pacing == 0) {
                 abstimes[j] = j; // one per second for the first 8 seconds
@@ -258,10 +274,20 @@ void makenotes(int hour, int minute, float humidity, float temperature) {
                 abstimes[j] = (6 * pacing) * j + entropy; // spread to max 1 minute apart
             }
             
-            mintimes[j] = floor(abstimes[j]/60);
+            mintimes[j] = int(floor(float(abstimes[j])/60.0));
             sectimes[j] = abstimes[j] % 60;
+            
+//            Serial.print(mintimes[j]);
+//            Serial.print(":");
+//            Serial.print(sectimes[j]);
+//            Serial.print(" ");
         }
     }
+
+    prevtemp = temperature;
+    prevhum = humidity;
+    
+//    Serial.println();
     
     cyclecount++;
 }
@@ -298,6 +324,9 @@ void setup() {
         //RTC.adjust(DateTime(__DATE__, __TIME__));
     }
     
+    prevtemp = tempval(); // preset past weather variables
+    prevhum = humval();
+    
     queryStatus("all");
     
     delay(250);
@@ -325,28 +354,51 @@ void loop() {
             toggle = !toggle;
             
             // ACTUATOR MOVEMENT
-            // -- every 5 minutes opens slightly if getting lighter, closes if getting darker
-            if (now.minute() % 5 == 0 && now.second() == 0) {
-                
-                if (light > prevlight && currPos > actmin) {
-                    command = "bumpdown";
-                    bumpstart = millis();
-                }
-                if (light < prevlight && currPos < actmax) {
-                    command = "bumpup";
-                    bumpstart = millis();
-                }
-                
-                prevlight = light;
-                
+            // -- open for the first four hours, close for the last four
+            
+            if (now.hour() < 12 && now.minute() == 0 && now.second() == 0) {
+                float portion = (now.hour() - 7) / 4; // 1/4, 1/2, 3/4, or 1
+                downlimit = actmax - int(floor(portion*(actmax - actmin)));
+                command = "limdown";
             }
             
+            if (now.hour() > 18 && now.minute() == 0 && now.second() == 0) {
+                float portion = (now.hour() - 18) / 4; // 1/4, 1/2, 3/4, or 1
+                uplimit = actmin + int(floor(portion*(actmax - actmin)));
+                command = "limup";
+            }
+            
+            // flex on the hour from noon until 6pm
+            if ((now.hour() >= 12 && now.hour() <=18) && now.minute() == 0 && now.second() == 0) {
+                command = "up";
+            }
+            if ((now.hour() >= 12 && now.hour() <=18) && now.minute()== 1 && now.second() == 0) {
+                command = "limdown";
+            }
+            
+            
+//            if (now.minute() % 5 == 0 && now.second() == 0) {
+//                queryStatus("light");
+//            
+//                if (light > prevlight && currPos > actmin || light > 300) {
+//                    command = "bumpdown";
+//                    bumpstart = millis();
+//                }
+//                if (light < prevlight || light < 200) {
+//                    command = "bumpup";
+//                    bumpstart = millis();
+//                }
+//                
+//                prevlight = light;
+//                
+//            }
+
             
             // MUSIC ALGORITHM
-            if (now.minute() % 15 == 0 && now.second() == 0) {
+            if (now.minute() % 1 == 0 && now.second() == 0) {
                 makenotes(now.hour(), now.minute(), humval(), tempval());
             }
-            
+
             for(int t = 0; t < 8; t++) {
                 if (now.minute() % 15 == mintimes[t]) {
                     // now minute matches minute chime
@@ -356,22 +408,23 @@ void loop() {
                 }
             }
             
-            if (now.second() % 2 == 0) chime(0);
-            
-            if (now.second() % 3 == 0) chime(1);
-            
-            if (now.second() % 4 == 0) chime(2);
-
-            if (now.second() % 5 == 0) chime(3);
-            
-            if (now.second() % 6 == 0) chime(4);
-            
             if (trigger) solstart = millis();
             prevtime = now.unixtime();
         }
         
         else trigger = false;
     }
+    if (now.hour() < 8 || now.hour() >= 23) {
+        for (int n = 0; n < 8; n++) {
+            notes[n] = 6;
+        }
+        if (currPos != actmax) {
+            command = "up";
+        }
+    }
+    
+    
+    
     
     //          SERIAL INPUT
     
@@ -408,6 +461,16 @@ void loop() {
             case 108: // l
                 command = "bumpdown";
                 bumpstart = millis();
+                break;
+            case 117: // u
+                Serial.print("up limit: ");
+                Serial.println(uplimit);
+                command = "limup";
+                break;
+            case 106: // j
+                Serial.print("down limit: ");
+                Serial.println(downlimit);
+                command = "limdown";
                 break;
             case 97: // a
                 queryStatus("actuator");
@@ -448,7 +511,7 @@ void loop() {
     
     //          ACTUATOR AUTOSTOP
     
-    if (millis() - dbstart > dbtimer) {
+    if (millis() - dbstart > dbtimer && currPos > 250) {
         if (currPos == prevPos) command = "stop";
         dbstart = millis();
     }
@@ -503,10 +566,51 @@ void loop() {
     
     else if (command == "bumpdown") {
         // short down
-        digitalWrite(actind2, HIGH);
-        digitalWrite(act2, HIGH);
-        digitalWrite(act1, LOW);
-        if (millis() - bumpstart > bumptime) command = "stop";
+        if (currPos > actmin) {
+            digitalWrite(actind2, HIGH);
+            digitalWrite(act2, HIGH);
+            digitalWrite(act1, LOW);
+            if (millis() - bumpstart > bumptime) command = "stop";
+        }
+        else {
+            command = "stop";
+            Serial.println("!! limit reached !!");
+            digitalWrite(actind2, LOW);
+            digitalWrite(act2, LOW);
+            digitalWrite(act1, LOW);
+        }
+    }
+    
+    else if (command == "limup") {
+        // defined up
+        if (currPos < uplimit) {
+            digitalWrite(actind1, HIGH);
+            digitalWrite(act1, HIGH);
+            digitalWrite(act2, LOW);
+        }
+        else {
+            command = "stop";
+            Serial.println("!! computed up limit reached !!");
+            digitalWrite(actind1, LOW);
+            digitalWrite(act2, LOW);
+            digitalWrite(act1, LOW);
+        }
+    }
+    
+    else if (command == "limdown") {
+        // defined down
+        if (currPos > downlimit) {
+            digitalWrite(actind2, HIGH);
+            digitalWrite(act2, HIGH);
+            digitalWrite(act1, LOW);
+        }
+        else {
+            command = "stop";
+            Serial.println("!! computed down limit reached !!");
+            digitalWrite(actind2, LOW);
+            digitalWrite(act2, LOW);
+            digitalWrite(act1, LOW);
+        }
     }
     
     
